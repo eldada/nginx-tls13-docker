@@ -1,4 +1,4 @@
-FROM debian:stretch AS build
+FROM debian:9.6 as builder
 
 ARG PCRE_VERSION="8.42"
 ARG PCRE_CHECKSUM="69acbc2fbdefb955d42a4c606dfde800c2885711d2979e356c0636efde9ec3b5"
@@ -49,18 +49,36 @@ RUN if [ "$PCRE_CHECKSUM" != "$(sha256sum /tmp/pcre.tar.gz | awk '{print $1}')" 
     tar xf /tmp/nginx.tar.gz && \
     mv /tmp/nginx-$NGINX_VERSION /tmp/nginx
 
+# Install required packages
+RUN apt update && apt install -y git gcc g++ make curl build-essential checkinstall zlib1g-dev
+
+# Build openssl from sources
+WORKDIR /tmp/openssl-$OPENSSL_VERSION
+RUN ./config --prefix=/usr/local --openssldir=/usr/local && \
+    make && \
+    make install && \
+    rm -f /usr/bin/openssl && \
+    ln -s /usr/local/openssl/bin/openssl /usr/bin/openssl
+
+# Generate self signed certificate
+RUN export LD_LIBRARY_PATH=/usr/local/lib && \
+    mkdir -p /etc/nginx/ssl && \
+    openssl genrsa -out /etc/nginx/ssl/example.key 2048 && \
+    openssl req -new -key /etc/nginx/ssl/example.key -out /etc/nginx/example.csr -subj "/C=US/ST=Alaska/L=Palmer/O=CTO/CN=localhost" && \
+    openssl x509 -req -days 365 -in /etc/nginx/example.csr -signkey /etc/nginx/ssl/example.key -out /etc/nginx/ssl/example.crt
+
+# Build nginx from sources
 WORKDIR /tmp/nginx
-RUN apt update && \
-    apt install -y git gcc g++ make && \
-    git clone --recurse-submodules https://github.com/google/ngx_brotli.git /tmp/ngx_brotli && \
+RUN git clone --recurse-submodules https://github.com/google/ngx_brotli.git /tmp/ngx_brotli && \
     ./configure $NGINX_CONFIG && \
     make
 
+# Build final image
+FROM debian:9.6-slim
 
-FROM gcr.io/distroless/base
-
-COPY --from=build /tmp/nginx/objs/nginx /nginx
-COPY --from=build /tmp/nginx/html /etc/nginx/html
+COPY --from=builder /tmp/nginx/objs/nginx /nginx
+COPY --from=builder /tmp/nginx/html /etc/nginx/html
+COPY --from=builder /etc/nginx/ssl /etc/nginx/ssl
 
 COPY conf /etc/nginx
 
