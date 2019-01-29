@@ -2,4 +2,4 @@ services:
   - docker
 script:
   - docker build -t nginx:0.1 .
-  - docker run -it --entrypoint bash nginx0:1 -c "/nginx -V"
+  - docker run -it --entrypoint bash nginx:0.1 -c "/nginx -V"
