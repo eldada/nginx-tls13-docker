@@ -1,7 +1,8 @@
-# Nginx with built in support for TLS 1.3
+# Docker image for Nginx with built in support for TLS 1.3
 Nginx and openssl built from source in a Docker image to provide out of the box TLS 1.3 support.
 
-This image also includes pre-built, self signed key and certificate.
+* Image includes pre-built, self signed key and certificate
+* Container runs as non-root (user `nginx` is created and used) 
 
 ## Build
 Build Docker image
