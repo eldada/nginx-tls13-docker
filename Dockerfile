@@ -1,4 +1,4 @@
-FROM debian:9.6 as builder
+FROM debian:9.6-slim as builder
 
 ARG PCRE_VERSION="8.42"
 ARG PCRE_CHECKSUM="69acbc2fbdefb955d42a4c606dfde800c2885711d2979e356c0636efde9ec3b5"
@@ -38,6 +38,7 @@ ADD https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz /tmp/openssl.
 ADD https://zlib.net/zlib-$ZLIB_VERSION.tar.gz /tmp/zlib.tar.gz
 ADD https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz /tmp/nginx.tar.gz
 
+# Download sources needed for the builds
 WORKDIR /tmp
 RUN if [ "$PCRE_CHECKSUM" != "$(sha256sum /tmp/pcre.tar.gz | awk '{print $1}')" ]; then exit 1; fi && \
     tar xf /tmp/pcre.tar.gz && \
@@ -50,7 +51,7 @@ RUN if [ "$PCRE_CHECKSUM" != "$(sha256sum /tmp/pcre.tar.gz | awk '{print $1}')" 
     mv /tmp/nginx-$NGINX_VERSION /tmp/nginx
 
 # Install required packages
-RUN apt update && apt install -y git gcc g++ make curl build-essential checkinstall zlib1g-dev
+RUN apt-get update && apt-get install -y git gcc g++ make curl build-essential checkinstall zlib1g-dev
 
 # Build openssl from sources
 WORKDIR /tmp/openssl-$OPENSSL_VERSION
@@ -81,5 +82,14 @@ COPY --from=builder /tmp/nginx/html /etc/nginx/html
 COPY --from=builder /etc/nginx/ssl /etc/nginx/ssl
 
 COPY conf /etc/nginx
+
+# Create the nginx user and allow it to run /nginx
+RUN useradd -M -s /usr/sbin/nologin --uid 1066 --user-group nginx && \
+    apt-get update && \
+    apt-get install -y libcap2-bin && \
+    setcap CAP_NET_BIND_SERVICE=+eip /nginx && \
+    chown -R nginx. /etc/nginx
+
+USER nginx
 
 ENTRYPOINT ["/nginx", "-g", "daemon off;"]

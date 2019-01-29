@@ -1,5 +1,5 @@
 services:
   - docker
 script:
-  - docker build -t nginx .
-  - docker run nginx /nginx -v
+  - docker build -t nginx:0.1 .
+  - docker run -it --entrypoint bash nginx0:1 -c "/nginx -V"
