@@ -55,3 +55,6 @@ For supporting the TLS 1.3, openssl 1.1.1 is used
 
 ## Nginx
 Current Nginx version is 1.15.8
+
+## Thanks
+This repository is initially forked and inspired from https://github.com/ricardbejarano/nginx.
